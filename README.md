@@ -23,15 +23,6 @@ Bot Link - https://t.me/meme_mtwn105_bot
 Application has deployed on Microsoft Azure using Azure Kubernetes Services (AKS).
 Two deployments created, one for Redis & one for NodeJS express (which is deployed using the docker image)
 
-All environment variables required are stored in the Kubernetes secrets.
-
-- Azure Kubernetes Service
-  - Redis Kubernetes Pod
-  - Memer NodeJs Express Kubernetes Pod
-
-## Architecture Diagram
-
-![Memer_Architecture](https://user-images.githubusercontent.com/12975481/156997559-00fe8078-6395-46fc-aefa-d3c3ae70463e.png)
-
+# Telegram Meme Bot
 
 
