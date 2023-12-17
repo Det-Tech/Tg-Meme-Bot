@@ -40,7 +40,7 @@ const url = "https://api.imgflip.com/caption_image";
 
 const app = express();
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3600;
 
 // parse the updates to JSON
 app.use(express.json());
@@ -312,6 +312,17 @@ bot.on("callbackQuery", async (callbackQuery) => {
             msg.chat.id.toString(),
             JSON.stringify({ state: "CREATE_CUSTOM_IMAGE_UPLOAD" })
         );
+    } else if (action == "AI_TYPE") {
+
+        bot.sendMessage(
+            msg.chat.id,
+            "Please send word to create a meme from AI"
+        );
+
+        await client.set(
+            msg.chat.id.toString(),
+            JSON.stringify({ state: "CREATE_AI" })
+        );
     }
 });
 
@@ -565,6 +576,87 @@ bot.on(/(.*)/, async (msg, props) => {
             bot.sendMessage(msg.chat.id, `Generating meme please wait...`);
 
             await generateCustomMeme(msg, bottomText);
+        } else if (chatData && chatData.state === "CREATE_AI") {
+            const text = props.match[0];
+
+            console.log("Text for AI", text);
+            bot.sendMessage(
+                msg.chat.id,
+                "Please wait, generating..."
+            );
+
+            const res = await generateMemeWithDalle3(text);
+            if(res?.success){
+                bot.sendPhoto(msg.chat.id, res.url);
+                bot.sendMessage(
+                    msg.chat.id,
+                    "Please enter a top text (send . to skip)"
+                );
+            }else{
+                bot.sendMessage(
+                    msg.chat.id,
+                    "Sorry, AI generating issue, please try again!"
+                );
+                return;
+            }
+            // generate the ai photo with dalle 3
+
+            await client.set(
+                msg.chat.id.toString(),
+                JSON.stringify({
+                    state: "CREATE_AI_IMAGE_TOP",
+                    image: res?.success?res.url:"",
+                    text: text,
+                })
+            );
+        } else if (chatData && chatData.state === "CREATE_AI_IMAGE_TOP") {
+            const text = props.match[0];
+
+            console.log("topText", text);
+
+            let topText = "";
+
+            if (text === ".") {
+            } else {
+                topText = text;
+            }
+            bot.sendMessage(
+                msg.chat.id,
+                "Please enter a bottom text (send . to skip)"
+            );
+
+            await client.set(
+                msg.chat.id.toString(),
+                JSON.stringify({
+                    state: "CREATE_AI_IMAGE_BOTTOM",
+                    image: chatData.image,
+                    topText: topText,
+                })
+            );
+        } else if (chatData && chatData.state === "CREATE_AI_IMAGE_BOTTOM") {
+            const text = props.match[0];
+
+            console.log("bottomText", text);
+
+            let bottomText = "";
+
+            if (text === ".") {
+            } else {
+                bottomText = text;
+            }
+
+            bot.sendMessage(
+                msg.chat.id,
+                `
+      Top Text is ${
+          chatData.topText === "" ? "None" : chatData.topText
+      } \nBottom Text is ${bottomText === "" ? "None" : bottomText}
+     `
+            );
+
+            bot.sendMessage(msg.chat.id, `Generating AI meme please wait...`);
+
+            await generateCustomMeme(msg, bottomText);
         } else if (
             msg.text.includes("/start") &&
             msg.text.includes("/help") &&
@@ -640,12 +732,16 @@ generateCustomMeme = async (msg, bottomText) => {
         // Get image
         const image = chatData.image;
 
-        // Get image file from telegram using file_id
-        const fileDetails = await bot.getFile(image);
+        console.log(chatData);
+        
+        let fileDetails;
+        if(chatData.state != "CREATE_AI_IMAGE_BOTTOM"){
+            // Get image file from telegram using file_id
+            fileDetails = await bot.getFile(image);
+            console.log("File Details", fileDetails);
+        }
 
-        console.log("File Details", fileDetails);
-
-        if (fileDetails && fileDetails.fileLink) {
+        if (fileDetails && chatData.state != "CREATE_AI_IMAGE_BOTTOM" && fileDetails.fileLink) {
             // Download image
             try {
                 const res = await axios.get(fileDetails.fileLink, {
@@ -733,8 +829,97 @@ generateCustomMeme = async (msg, bottomText) => {
                 );
 
             }
+        } else  if (chatData.state == "CREATE_AI_IMAGE_BOTTOM") {
+            // Download image
+            console.log("AI image downloading... ") 
+            try {
+                const res = await axios.get(chatData.image, {
+                    responseType: "arraybuffer",
+                });
+
+                fs.writeFileSync(
+                    `./images/${msg.chat.id}.jpg`,
+                    Buffer.from(res.data),
+                    "binary"
+                );
+
+                // Usage
+                await addTextToImage(
+                    `./images/${msg.chat.id}.jpg`,
+                    `./images/${msg.chat.id}--11.jpg`,
+                    chatData.topText,
+                    bottomText
+                );
+
+                // Generate Meme
+                try {
+                    fs.copyFileSync(
+                        `./images/${msg.chat.id}--11.jpg`,
+                        `./images/meme_${msg.chat.id}.jpg`
+                    );
+
+                    // Send meme to user
+                    bot.sendMessage(msg.chat.id, `Here is your meme 👇`);
+                    bot.sendPhoto(
+                        msg.chat.id,
+                        `./images/meme_${msg.chat.id}.jpg`
+                    );
+                    await client.set(
+                        msg.chat.id.toString(),
+                        JSON.stringify({ state: "CREATE_TEMPLATE_FINISHED" })
+                    );
+
+                    // If you like it do share this bot with your friends
+                    // Also contact  https://t.me/BkingTechPrince
+                    await bot.sendMessage(
+                        msg.chat.id,
+                        "Do you like this meme? Share it with your friends and follow me @BkingTechPrince for more cool stuff 😉. If you want to support me, consider clicking the button below 👇",
+                        {
+                            replyMarkup: {
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text: "@BkingTechPrince",
+                                            url: "https://t.me/BkingTechPrince",
+                                        },
+                                        {
+                                            text: "Support",
+                                            url: "https://t.me/BkingTechPrince",
+                                        },
+                                    ],
+                                ],
+                            },
+                        }
+                    );
+
+                } catch (err) {
+                    console.log(
+                        "Error while generating custom meme from third party",
+                        err
+                    );
+                    bot.sendMessage(
+                        msg.chat.id,
+                        `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`
+                    );
+                    await client.set(
+                        msg.chat.id.toString(),
+                        JSON.stringify({ state: "CREATE_TEMPLATE_FINISHED" })
+                    );
+                }
+            } catch (err) {
+                console.log("Error while generating meme", err);
+                bot.sendMessage(
+                    msg.chat.id,
+                    `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`
+                );
+                await client.set(
+                    msg.chat.id.toString(),
+                    JSON.stringify({ state: "CREATE_TEMPLATE_FINISHED" })
+                );
+
+            }
         } else {
-            console.log("Error occured while downloading image: ", err);
+            console.log("Error occured while downloading image: ");
 
             bot.sendMessage(
                 msg.chat.id,
@@ -839,6 +1024,37 @@ async function addTextToImage(inputImagePath, outputImagePath, topText, bottomTe
         // Save the modified image
         fs.writeFileSync(outputImagePath, canvas.toBuffer("image/jpeg"));
     });
+}
+
+
+// Function to generate the meme image using dalle 3
+async function generateMemeWithDalle3(input) {
+    try{
+        let data = JSON.stringify({
+          "model": "dall-e-3",
+          "prompt": input,
+          "n": 1,
+          "size": "1024x1024"
+        });
+        
+        let config = {
+          method: 'post',
+          maxBodyLength: Infinity,
+          url: 'https://api.openai.com/v1/images/generations',
+          headers: { 
+            'Authorization': `Bearer ${process.env.OPENAI_KEY}`, 
+            'Content-Type': 'application/json', 
+          },
+          data : data
+        };
+        
+        const res = await axios.request(config);
+        console.log(res?.data.data[0]?.url);
+        return {success: true, url: res?.data?.data[0]?.url}
+    }catch(err){
+        console.log(err)
+        return {success: false}
+    }
 }
 
 bot.start();
