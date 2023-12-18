@@ -60,53 +60,6 @@ bot.on("error", (err) => {
     console.log("Some error occured", err);
 });
 
-// Admin Message
-bot.on(/\/message (.+)/, async (msg, props) => {
-    console.log(props);
-
-    const message = props.match[1];
-
-    if (msg.chat.id == process.env.MY_CHAT_ID && message) {
-        const text = message.substring(9);
-
-        try {
-            const keys = await client.keys("*");
-
-            console.log("Sending message to ", keys.length, " people");
-
-            let success = 0;
-
-            for (const chatId of keys) {
-                console.log("sending msg to", chatId);
-                try {
-                    bot.sendMessage(chatId, text);
-                    success++;
-                } catch (err) {
-                    console.log("Error while sending message", err);
-                }
-            }
-
-            console.log(
-                "Successfully sent message to ",
-                success + "/" + keys.length + " people"
-            );
-
-            bot.sendMessage(
-                process.env.MY_CHAT_ID,
-                "Successfully sent message to " +
-                    success +
-                    "/" +
-                    keys.length +
-                    " people"
-            );
-        } catch (err) {
-            console.log("Error while sending message");
-            bot.sendMessage(msg.chat.id, "Error while sending message ");
-            return;
-        }
-    }
-});
-
 // Start
 bot.on(/\/start/, async (msg) => {
     await bot.sendMessage(msg.chat.id, "🍔 Welcome to MemeAI 🌭");
@@ -879,61 +832,6 @@ generateCustomMeme = async (msg, bottomText) => {
         throw err;
     }
 };
-
-// Admin messages
-bot.on("*", async (msg) => {
-    if (
-        msg.chat.id == process.env.MY_CHAT_ID &&
-        !!msg.caption &&
-        msg.caption.includes("/message") &&
-        (!!msg.photo || !!msg.video || !!msg.animation)
-    ) {
-        console.log("Message received from my chat id");
-        console.log(msg);
-
-        try {
-            const keys = await client.keys("*");
-
-            console.log("Sending message to ", keys.length, " people");
-
-            let success = 0;
-
-            for (const chatId of keys) {
-                console.log("sending msg to", chatId);
-
-                try {
-                    if (!!msg.photo) {
-                        bot.sendPhoto(
-                            chatId,
-                            msg.photo[msg.photo.length - 1].file_id
-                        );
-                    } else if (!!msg.video) {
-                        bot.sendVideo(chatId, msg.video.file_id);
-                    } else if (!!msg.animation) {
-                        bot.sendAnimation(chatId, msg.animation.file_id);
-                    }
-
-                    success++;
-                } catch (err) {
-                    console.log("Failed to send message to ", chatId);
-                }
-
-                bot.sendMessage(
-                    msg.chat.id,
-                    "Sent messages successfully to " +
-                        success +
-                        "/" +
-                        keys.length +
-                        " people"
-                );
-            }
-        } catch (err) {
-            console.log("Error while sending message");
-            bot.sendMessage(msg.chat.id, "Error while sending message ");
-            return;
-        }
-    }
-});
 
 // Function to add text to the image
 async function addTextToImage(
