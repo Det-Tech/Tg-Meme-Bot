@@ -17,7 +17,7 @@ require("dotenv").config();
 const path = require("path");
 
 // Register the custom font
-registerFont(path.resolve(__dirname, "./Playball.ttf"), {
+registerFont(path.resolve(__dirname, "./impact.ttf"), {
     family: "CustomFont",
 });
 
@@ -69,10 +69,10 @@ bot.on(/\/start/, async (msg) => {
         msg.chat.id,
         `Your all in 1 tool to edit, generate and randomize your own custom memes. To begin please select from the Below List
 
-        🖼 AI Image - Create an AI generate image + add your own text
-        🌍 Custom Image - Insert your own picture + add your own text
-        🚨 Randomizer - Generates multiple memes based on your search term
-        ✔️ Preset - Searches the Internet for pre-existing memes        
+🖼 AI Image - Create an AI generate image + add your own text
+🌍 Custom Image - Insert your own picture + add your own text
+🚨 Randomizer - Generates multiple memes based on your search term
+✔️ Preset - Searches the Internet for pre-existing memes        
   `,
         {
             replyMarkup: {
@@ -115,10 +115,10 @@ bot.on(/^hi$|^hey$|^hello$/i, async (msg) => {
         msg.chat.id,
         `Your all in 1 tool to edit, generate and randomize your own custom memes. To begin please select from the Below List
 
-        🖼 AI Image - Create an AI generate image + add your own text
-        🌍 Custom Image - Insert your own picture + add your own text
-        🚨 Randomizer - Generates multiple memes based on your search term
-        ✔️ Preset - Searches the Internet for pre-existing memes        
+🖼 AI Image - Create an AI generate image + add your own text
+🌍 Custom Image - Insert your own picture + add your own text
+🚨 Randomizer - Generates multiple memes based on your search term
+✔️ Preset - Searches the Internet for pre-existing memes        
   `,
         {
             replyMarkup: {
@@ -181,30 +181,68 @@ bot.on(/^\/search (.+)$/, async (msg, props) => {
 
         console.log("searchText, preset", searchText);
 
-        bot.sendMessage(msg.chat.id, "Searching...");
+        await bot.sendMessage(msg.chat.id, "Searching...");
 
-        bot.sendMessage(msg.chat.id, "Enjoy your tailored content below 👇");
+        await bot.sendMessage(msg.chat.id, "Enjoy your tailored content below 👇");
 
         let memeSrcs = await fetchMeme(searchText);
 
         if (memeSrcs && memeSrcs.length > 0) {
             console.log("Got Search " + memeSrcs);
 
-            memeSrcs.forEach((memeSrc) => {
-                if (memeSrc.substring(0, 2) === "//") {
-                    memeSrc = "http://" + memeSrc.substring(2);
+            for(let i = 0; i <memeSrcs.length; i++){
+                let memeSrc;
+                if (memeSrcs[i].substring(0, 2) === "//") {
+                    memeSrc = "http://" + memeSrcs[i].substring(2);
                 } else {
-                    memeSrc = "https://imgflip.com" + memeSrc;
+                    memeSrc = "https://imgflip.com" + memeSrcs[i];
                 }
 
-                bot.sendPhoto(msg.chat.id, memeSrc);
-            });
+                await bot.sendPhoto(msg.chat.id, memeSrc);
+            }
+
+            await bot.sendMessage(
+                msg.chat.id,
+                `Please select the return button to start again`,
+                {
+                    replyMarkup: {
+                        inline_keyboard: [
+                            [
+                                {
+                                    text: "Return",
+                                    callback_data: "CREATE_TEMPLATE_FINISHED",
+                                },
+                            ],
+                        ],
+                    },
+                }
+            );
+            await client.set(
+                msg.chat.id.toString(),
+                JSON.stringify({ state: "CREATE_TEMPLATE_FINISHED" })
+            );
         } else {
-            bot.sendMessage(
+            await bot.sendMessage(
                 msg.chat.id,
                 "Sorry " +
                     msg.from.first_name +
-                    ", I couldn't find a meme for you 😢"
+                    ", I couldn't find a meme for you 😢",
+                    {
+                        replyMarkup: {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text: "Return",
+                                        callback_data: "CREATE_TEMPLATE_FINISHED",
+                                    },
+                                ],
+                            ],
+                        },
+                    }
+            );
+            await client.set(
+                msg.chat.id.toString(),
+                JSON.stringify({ state: "CREATE_TEMPLATE_FINISHED" })
             );
         }
     }
@@ -362,6 +400,49 @@ bot.on("callbackQuery", async (callbackQuery) => {
             msg.chat.id.toString(),
             JSON.stringify({ state: "CREATE_AI" })
         );
+    } else if (action == "CREATE_TEMPLATE_FINISHED") {
+        await bot.sendMessage(msg.chat.id, "🍔 Welcome to MemeAI 🌭");
+    await client.set(msg.chat.id.toString(), JSON.stringify({ state: "NONE" }));
+
+    await bot.sendMessage(
+        msg.chat.id,
+        `Your all in 1 tool to edit, generate and randomize your own custom memes. To begin please select from the Below List
+
+🖼 AI Image - Create an AI generate image + add your own text
+🌍 Custom Image - Insert your own picture + add your own text
+🚨 Randomizer - Generates multiple memes based on your search term
+✔️ Preset - Searches the Internet for pre-existing memes        
+  `,
+        {
+            replyMarkup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "🖼 AI Image",
+                            callback_data: "AI_TYPE",
+                        },
+                        {
+                            text: "🌍 Custom Image",
+                            callback_data: "CUSTOM_TYPE",
+                        },
+                        {
+                            text: "🚨 Randomizer",
+                            callback_data: "TEMPLATE_TYPE",
+                        },
+                        {
+                            text: "✔️ Preset",
+                            callback_data: "SEARCH_TYPE",
+                        },
+                    ],
+                ],
+            },
+        }
+    );
+
+    await client.set(
+        msg.chat.id.toString(),
+        JSON.stringify({ state: "CREATE_STARTED" })
+    );
     }
 });
 
@@ -432,9 +513,25 @@ bot.on(/(.*)/, async (msg, props) => {
                 response.data.success &&
                 response.data.data.url
             ) {
-                bot.sendMessage(msg.chat.id, `Meme 👇`);
-                bot.sendPhoto(msg.chat.id, response.data.data.url);
+                await bot.sendMessage(msg.chat.id, `Meme 👇`);
+                await bot.sendPhoto(msg.chat.id, response.data.data.url);
 
+                await bot.sendMessage(
+                    msg.chat.id,
+                    `Please select the return button to start again`,
+                    {
+                        replyMarkup: {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text: "Return",
+                                        callback_data: "CREATE_TEMPLATE_FINISHED",
+                                    },
+                                ],
+                            ],
+                        },
+                    }
+                );
                 await client.set(
                     msg.chat.id.toString(),
                     JSON.stringify({ state: "CREATE_TEMPLATE_FINISHED" })
@@ -449,7 +546,19 @@ bot.on(/(.*)/, async (msg, props) => {
 
                 bot.sendMessage(
                     msg.chat.id,
-                    `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`
+                    `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`,
+                    {
+                        replyMarkup: {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text: "Return",
+                                        callback_data: "CREATE_TEMPLATE_FINISHED",
+                                    },
+                                ],
+                            ],
+                        },
+                    }
                 );
 
                 await client.set(
@@ -511,9 +620,21 @@ bot.on(/(.*)/, async (msg, props) => {
                     "Write your 'Header' below (Type . to skip) ↩️"
                 );
             } else {
-                bot.sendMessage(
+                await bot.sendMessage(
                     msg.chat.id,
-                    "Sorry, AI generating issue, please try again!"
+                    "Sorry, AI generating issue, please try again!",
+                    {
+                        replyMarkup: {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text: "Return",
+                                        callback_data: "CREATE_TEMPLATE_FINISHED",
+                                    },
+                                ],
+                            ],
+                        },
+                    }
                 );
                 return;
             }
@@ -588,12 +709,12 @@ bot.on(/(.*)/, async (msg, props) => {
             await bot.sendMessage(
                 msg.chat.id,
                 `Your all in 1 tool to edit, generate and randomize your own custom memes. To begin please select from the Below List
-
+        
         🖼 AI Image - Create an AI generate image + add your own text
         🌍 Custom Image - Insert your own picture + add your own text
         🚨 Randomizer - Generates multiple memes based on your search term
         ✔️ Preset - Searches the Internet for pre-existing memes        
-  `,
+          `,
                 {
                     replyMarkup: {
                         inline_keyboard: [
@@ -625,7 +746,19 @@ bot.on(/(.*)/, async (msg, props) => {
 
         bot.sendMessage(
             msg.chat.id,
-            `Sorry ${msg.from.first_name}, There was some error & I couldn't help you 😢. Please try again 🥺`
+            `Sorry ${msg.from.first_name}, There was some error & I couldn't help you 😢. Please try again 🥺`,
+            {
+                replyMarkup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: "Return",
+                                callback_data: "CREATE_TEMPLATE_FINISHED",
+                            },
+                        ],
+                    ],
+                },
+            }
         );
         await client.set(
             msg.chat.id.toString(),
@@ -707,14 +840,31 @@ generateCustomMeme = async (msg, bottomText) => {
                     );
 
                     // Send meme to user
-                    bot.sendMessage(msg.chat.id, `Meme 👇`);
-                    bot.sendPhoto(
+                    await bot.sendMessage(msg.chat.id, `Meme 👇`);
+                    await bot.sendPhoto(
                         msg.chat.id,
                         `./images/meme_${fileDetails.file_id}.jpg`
                     );
                     await client.set(
                         msg.chat.id.toString(),
                         JSON.stringify({ state: "CREATE_TEMPLATE_FINISHED" })
+                    );
+
+                    await bot.sendMessage(
+                        msg.chat.id,
+                        `Please select the return button to start again`,
+                        {
+                            replyMarkup: {
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text: "Return",
+                                            callback_data: "CREATE_TEMPLATE_FINISHED",
+                                        },
+                                    ],
+                                ],
+                            },
+                        }
                     );
                 } catch (err) {
                     console.log(
@@ -723,7 +873,19 @@ generateCustomMeme = async (msg, bottomText) => {
                     );
                     bot.sendMessage(
                         msg.chat.id,
-                        `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`
+                        `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`,
+                        {
+                            replyMarkup: {
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text: "Return",
+                                            callback_data: "CREATE_TEMPLATE_FINISHED",
+                                        },
+                                    ],
+                                ],
+                            },
+                        }
                     );
                     await client.set(
                         msg.chat.id.toString(),
@@ -734,7 +896,19 @@ generateCustomMeme = async (msg, bottomText) => {
                 console.log("Error while generating meme", err);
                 bot.sendMessage(
                     msg.chat.id,
-                    `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`
+                    `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`,
+                    {
+                        replyMarkup: {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text: "Return",
+                                        callback_data: "CREATE_TEMPLATE_FINISHED",
+                                    },
+                                ],
+                            ],
+                        },
+                    }
                 );
                 await client.set(
                     msg.chat.id.toString(),
@@ -771,14 +945,31 @@ generateCustomMeme = async (msg, bottomText) => {
                     );
 
                     // Send meme to user
-                    bot.sendMessage(msg.chat.id, `Meme 👇`);
-                    bot.sendPhoto(
+                    await bot.sendMessage(msg.chat.id, `Meme 👇`);
+                    await bot.sendPhoto(
                         msg.chat.id,
                         `./images/meme_${msg.chat.id}.jpg`
                     );
                     await client.set(
                         msg.chat.id.toString(),
                         JSON.stringify({ state: "CREATE_TEMPLATE_FINISHED" })
+                    );
+
+                    await bot.sendMessage(
+                        msg.chat.id,
+                        `Please select the return button to start again`,
+                        {
+                            replyMarkup: {
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text: "Return",
+                                            callback_data: "CREATE_TEMPLATE_FINISHED",
+                                        },
+                                    ],
+                                ],
+                            },
+                        }
                     );
                 } catch (err) {
                     console.log(
@@ -787,7 +978,19 @@ generateCustomMeme = async (msg, bottomText) => {
                     );
                     bot.sendMessage(
                         msg.chat.id,
-                        `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`
+                        `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`,
+                        {
+                            replyMarkup: {
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text: "Return",
+                                            callback_data: "CREATE_TEMPLATE_FINISHED",
+                                        },
+                                    ],
+                                ],
+                            },
+                        }
                     );
                     await client.set(
                         msg.chat.id.toString(),
@@ -798,7 +1001,19 @@ generateCustomMeme = async (msg, bottomText) => {
                 console.log("Error while generating meme", err);
                 bot.sendMessage(
                     msg.chat.id,
-                    `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`
+                    `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`,
+                    {
+                        replyMarkup: {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text: "Return",
+                                        callback_data: "CREATE_TEMPLATE_FINISHED",
+                                    },
+                                ],
+                            ],
+                        },
+                    }
                 );
                 await client.set(
                     msg.chat.id.toString(),
@@ -810,7 +1025,19 @@ generateCustomMeme = async (msg, bottomText) => {
 
             bot.sendMessage(
                 msg.chat.id,
-                `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`
+                `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`,
+                {
+                    replyMarkup: {
+                        inline_keyboard: [
+                            [
+                                {
+                                    text: "Return",
+                                    callback_data: "CREATE_TEMPLATE_FINISHED",
+                                },
+                            ],
+                        ],
+                    },
+                }
             );
             await client.set(
                 msg.chat.id.toString(),
@@ -822,8 +1049,21 @@ generateCustomMeme = async (msg, bottomText) => {
 
         bot.sendMessage(
             msg.chat.id,
-            `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`
+            `Sorry ${msg.from.first_name}, There was some error & I couldn't generate a meme for you 😢. Please try again 🥺`,
+            {
+                replyMarkup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: "Return",
+                                callback_data: "CREATE_TEMPLATE_FINISHED",
+                            },
+                        ],
+                    ],
+                },
+            }
         );
+
         await client.set(
             msg.chat.id.toString(),
             JSON.stringify({ state: "CREATE_TEMPLATE_FINISHED" })
@@ -832,7 +1072,7 @@ generateCustomMeme = async (msg, bottomText) => {
         throw err;
     }
 };
-
+ 
 // Function to add text to the image
 async function addTextToImage(
     inputImagePath,
@@ -849,7 +1089,7 @@ async function addTextToImage(
         ctx.drawImage(image, 0, 0, width, height);
 
         // Add text to the bottom center with custom font
-        ctx.font = `${Math.floor(width / 10)}px CustomFont`;
+        ctx.font = `${Math.floor(width / 7)}px CustomFont`;
         ctx.fillStyle = "white";
         ctx.textAlign = "center";
         ctx.fillText(bottomText, width / 2, height - Math.floor(height / 20));
