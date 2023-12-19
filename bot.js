@@ -622,7 +622,7 @@ bot.on(/(.*)/, async (msg, props) => {
             } else {
                 await bot.sendMessage(
                     msg.chat.id,
-                    "Sorry, AI generating issue, please try again!",
+                    "🔞 AI prohibits the generation of images that contain rude, violent or explicit content. Please try again ⌨️",
                     {
                         replyMarkup: {
                             inline_keyboard: [
@@ -1095,7 +1095,7 @@ async function addTextToImage(
         ctx.fillText(bottomText, width / 2, height - Math.floor(height / 20));
 
         // Add text to the top center with custom font
-        ctx.fillText(topText, width / 2, Math.floor(height / 10));
+        ctx.fillText(topText, width / 2, Math.floor(height / 5));
 
         // Save the modified image
         fs.writeFileSync(outputImagePath, canvas.toBuffer("image/jpeg"));
