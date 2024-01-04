@@ -1073,6 +1073,9 @@ generateCustomMeme = async (msg, bottomText) => {
     }
 };
  
+var maxWidth = 200; // Maximum width in pixels
+var maxHeight = 100; // Maximum height in pixels
+
 // Function to add text to the image
 async function addTextToImage(
     inputImagePath,
@@ -1089,17 +1092,63 @@ async function addTextToImage(
         ctx.drawImage(image, 0, 0, width, height);
 
         // Add text to the bottom center with custom font
-        ctx.font = `${Math.floor(width / 7)}px CustomFont`;
+        ctx.font = `${Math.floor(height / 10)}px CustomFont`;
         ctx.fillStyle = "white";
+    
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 5;
+
         ctx.textAlign = "center";
-        ctx.fillText(bottomText, width / 2, height - Math.floor(height / 20));
+
+        var lines = splitTextIntoLines(bottomText, width, ctx);
+         console.log("lines", lines)
+        for (var i = lines.length - 1; i >= 0; i--) {
+            ctx.fillText(lines[i], width / 2, height - Math.floor(height / 10) * i - 30);
+            ctx.strokeText(lines[i], width / 2, height - Math.floor(height / 10) * i - 30);
+        }
+        
+        // ctx.fillText(bottomText, width / 2, height - Math.floor(height / 20));
+        // ctx.strokeText(bottomText, width / 2, height - Math.floor(height / 20));
+        
+        var topLines = splitTextIntoLines(topText, width, ctx);
+        console.log("toplines", topLines)
+        for (var i = topLines.length - 1; i >= 0; i--) {
+            ctx.fillText(topLines[i], width / 2, Math.floor(height / 10) * (i + 1));
+            ctx.strokeText(topLines[i], width / 2, Math.floor(height / 10) * (i + 1));
+        }
 
         // Add text to the top center with custom font
-        ctx.fillText(topText, width / 2, Math.floor(height / 5));
+        // ctx.fillText(topText, width / 2, Math.floor(height / 5));
+        // ctx.strokeText(topText, width / 2, Math.floor(height / 5));  
 
         // Save the modified image
         fs.writeFileSync(outputImagePath, canvas.toBuffer("image/jpeg"));
     });
+}
+
+
+// Function to split the text into multiple lines based on the available width
+function splitTextIntoLines(text, maxWidth, ctx) {
+    var words = text.split(' ');
+    var lines = [];
+    var currentLine = '';
+  
+    for (var i = 0; i < words.length; i++) {
+      var word = words[i];
+      var testLine = currentLine + word + ' ';
+      var metrics = ctx.measureText(testLine);
+      var lineWidth = metrics.width;
+  
+      if (lineWidth > maxWidth && i > 0) {
+        lines.push(currentLine);
+        currentLine = word + ' ';
+      } else {
+        currentLine = testLine;
+      }
+    }
+  
+    lines.push(currentLine);
+    return lines;
 }
 
 // Function to generate the meme image using dalle 3
