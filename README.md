@@ -16,4 +16,6 @@ Bot Link - https://t.me/ThinkMemeBot
 - Telebot
 - Redis
 
+![MEME AI](https://github.com/Det-Tech/Tg-Meme-Bot/blob/main/capture.png?raw=true)
 
+ 
